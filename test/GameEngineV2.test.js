@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const rng = "0x2a7e194044b30027bA5aD517dc6a630Dc4902254";
+const rng = "0x9C5AB333475af6ECD3De08AF72D7ee7e10B4B2e7";
 const cryptoHands = "0x072Ef85515E9c61e13aa09BA4a861F8bc2632c43";
 
 describe("GameEngineV2 Unit Tests", async () => {
@@ -30,8 +30,8 @@ describe("GameEngineV2 Unit Tests", async () => {
       const player = await gameEngineV2.s_players(addr1.address);
       console.log(player);
 
-      const refree = await gameEngineV2.s_players(addr2.address);
-      console.log(refree);
+      // const refree = await gameEngineV2.s_players(addr2.address);
+      // console.log(refree);
 
       const commission = await gameEngineV2._getComissionFromBet(
         "1000000000000000000",

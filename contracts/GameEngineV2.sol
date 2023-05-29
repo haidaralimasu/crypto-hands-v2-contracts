@@ -58,7 +58,7 @@ contract GameEngineV2 is
         s_divider = 10;
 
         s_availableBets = [
-            1 ether,
+            0.001 ether,
             0.002 ether,
             0.003 ether,
             0.004 ether,
@@ -80,6 +80,18 @@ contract GameEngineV2 is
         }
 
         require(shouldProceed, "GameEngineV2: Invalid bet amount");
+
+        (address feeToken, uint256 requestFee) = s_rng.getRequestFee();
+
+        if (feeToken != address(0) && requestFee > 0) {
+            IERC20(feeToken).safeIncreaseAllowance(address(s_rng), requestFee);
+        }
+
+        (uint32 requestId, uint32 lockBlock) = s_rng.requestRandomNumber();
+
+        s_rngRequest.id = requestId;
+        s_rngRequest.lockBlock = lockBlock;
+        s_rngRequest.requestedAt = _currentTime();
 
         _createAndSettleBet(choice_, msg.value, _msgSender(), refree_);
     }
@@ -109,27 +121,6 @@ contract GameEngineV2 is
 
     function _currentTime() internal view returns (uint64 currentTime) {
         return uint64(block.timestamp);
-    }
-
-    function _getRandomOutcome() internal returns (GameChoices _outcome) {
-        (address feeToken, uint256 requestFee) = s_rng.getRequestFee();
-
-        if (feeToken != address(0) && requestFee > 0) {
-            IERC20(feeToken).safeIncreaseAllowance(address(s_rng), requestFee);
-        }
-
-        (uint32 requestId, uint32 lockBlock) = s_rng.requestRandomNumber();
-
-        s_rngRequest.id = requestId;
-        s_rngRequest.lockBlock = lockBlock;
-        s_rngRequest.requestedAt = _currentTime();
-
-        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id);
-        uint256 formmatedRandomNumber = randomNumber % 3;
-        GameChoices outcome = _getChoiceAccordingToNumber(
-            formmatedRandomNumber
-        );
-        _outcome = outcome;
     }
 
     function _getComissionFromBet(
@@ -203,21 +194,6 @@ contract GameEngineV2 is
         }
     }
 
-    //internal functions
-    function requestRandomnessToOracle() internal {
-        (address feeToken, uint256 requestFee) = s_rng.getRequestFee();
-
-        if (feeToken != address(0) && requestFee > 0) {
-            IERC20(feeToken).safeIncreaseAllowance(address(s_rng), requestFee);
-        }
-
-        (uint32 requestId, uint32 lockBlock) = s_rng.requestRandomNumber();
-
-        s_rngRequest.id = requestId;
-        s_rngRequest.lockBlock = lockBlock;
-        s_rngRequest.requestedAt = _currentTime();
-    }
-
     function _createAndSettleBet(
         uint256 choice_,
         uint256 betAmount_,
@@ -226,7 +202,11 @@ contract GameEngineV2 is
     ) internal {
         address refree = address(0);
 
-        if (s_players[player_].refree == address(0) && refree_ != address(0)) {
+        if (
+            s_players[player_].refree == address(0) &&
+            refree_ != address(0) &&
+            refree_ != player_
+        ) {
             s_players[player_].refree = refree_;
             refree = refree_;
             s_players[refree_].totalReferrals =
@@ -236,14 +216,11 @@ contract GameEngineV2 is
             refree = s_players[player_].refree;
         }
 
-        Player memory currentRefree = s_players[refree];
-
-        // requestRandomnessToOracle();
-
         GameChoices _playerChoice = _getChoiceAccordingToNumber(choice_);
 
-        // GameChoices _outcome = _getRandomOutcome();
-        GameChoices _outcome = GameChoices.Paper;
+        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id);
+
+        GameChoices _outcome = _getChoiceAccordingToNumber(randomNumber % 3);
 
         uint256 winAmount = _amountToWinningPool(betAmount_);
 
@@ -346,6 +323,8 @@ contract GameEngineV2 is
             s_players[player_].totalGamesPlayed +
             1;
     }
+
+    function _nftWinning(address player_) internal {}
 
     // Owner functions
     function updateRNG(RNGInterface rng_) external onlyOwner {

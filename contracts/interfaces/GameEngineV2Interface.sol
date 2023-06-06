@@ -11,8 +11,8 @@ interface GameEngineV2Interface {
         uint256 totalReferrals;
         uint256 nftWoned;
         uint256 nftWinPercentage;
+        uint256 refreeNftWinPercentage;
         address refree;
-        bool isRegistered;
     }
 
     struct Bet {
@@ -37,11 +37,12 @@ interface GameEngineV2Interface {
         Tie
     }
 
-    event CryptoHandsUpdated(address _newCryptoHands);
-    event MaxBetUpdated(uint256 _newMaxBet);
-    event MinBetUpdated(uint256 _newMinBet);
-    event DividerUpdated(uint256 _newDivider);
-    event ComissionPercentageUpdated(uint256 _comissionPercentage);
+    event RewardClaimed(
+        address indexed player,
+        uint256 indexed claimedAmount,
+        uint256 time
+    );
+
     event BetCreated(
         uint256 _betId,
         GameChoices _playerChoice,
@@ -50,6 +51,7 @@ interface GameEngineV2Interface {
         uint256 _winAmount,
         uint256 _time
     );
+
     event ResultsDeclared(
         uint256 _betId,
         GameChoices _choice,
@@ -60,4 +62,18 @@ interface GameEngineV2Interface {
         Results _result,
         uint256 _time
     );
+
+    event NFTWonned(address player, uint256 time);
+
+    event RNGUpdated(address newRNG);
+
+    event CryptoHandsUPdated(address newCryptoHands);
+
+    event CommissionPercentageUpdated(uint256 newCommissionPercentage);
+
+    event RefreeCommissionUpdated(uint256 newRefreeCommission);
+
+    event DividerUpdated(uint256 newDivider);
+
+    event AvailableBetsUpdated(uint256 newAmount);
 }

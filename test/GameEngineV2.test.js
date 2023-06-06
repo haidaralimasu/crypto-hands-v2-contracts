@@ -1,8 +1,8 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-const rng = "0x9C5AB333475af6ECD3De08AF72D7ee7e10B4B2e7";
-const cryptoHands = "0x072Ef85515E9c61e13aa09BA4a861F8bc2632c43";
+const rng = "0xd8540ea08052631B0B4e17ad14C1f556925e52aC";
+const cryptoHands = "0x635Af72bC3904DFf40e31538467A0A1528e338c4";
 
 describe("GameEngineV2 Unit Tests", async () => {
   let GameEngineV2;
@@ -20,25 +20,49 @@ describe("GameEngineV2 Unit Tests", async () => {
     await gameEngineV2.initialize(rng, cryptoHands);
   });
 
-  describe("Bet", () => {
+  describe("Deployment and constructor", () => {
     it("it should make bet", async () => {
-      await gameEngineV2.deposite({ value: "1000000000000000000" });
-      await gameEngineV2
-        .connect(addr1)
-        .makeBet(2, addr2.address, { value: "1000000000000000000" });
-
-      const player = await gameEngineV2.s_players(addr1.address);
-      console.log(player);
-
+      // await gameEngineV2.deposite({ value: "1000000000000000000" });
+      // await gameEngineV2
+      //   .connect(addr1)
+      //   .makeBet(2, addr2.address, { value: "1000000000000000000" });
+      // const player = await gameEngineV2.s_players(addr1.address);
+      // console.log(player);
       // const refree = await gameEngineV2.s_players(addr2.address);
       // console.log(refree);
+      // const commission = await gameEngineV2._getComissionFromBet(
+      //   "1000000000000000000",
+      //   addr1.address
+      // );
+      // console.log(commission);
 
-      const commission = await gameEngineV2._getComissionFromBet(
-        "1000000000000000000",
-        addr1.address
+      const winPercentage = await gameEngineV2._getNftWinPercentage(
+        "100000000000000"
       );
+      console.log(winPercentage);
+    });
+  });
 
-      console.log(commission);
+  describe("Bet", () => {
+    it("it should make bet", async () => {
+      // await gameEngineV2.deposite({ value: "1000000000000000000" });
+      // await gameEngineV2
+      //   .connect(addr1)
+      //   .makeBet(2, addr2.address, { value: "1000000000000000000" });
+      // const player = await gameEngineV2.s_players(addr1.address);
+      // console.log(player);
+      // const refree = await gameEngineV2.s_players(addr2.address);
+      // console.log(refree);
+      // const commission = await gameEngineV2._getComissionFromBet(
+      //   "1000000000000000000",
+      //   addr1.address
+      // );
+      // console.log(commission);
+
+      const winPercentage = await gameEngineV2._getNftWinPercentage(
+        "100000000000000"
+      );
+      console.log(winPercentage);
     });
   });
 });

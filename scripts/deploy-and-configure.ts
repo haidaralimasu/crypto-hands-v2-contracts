@@ -1,61 +1,59 @@
-const { ethers } = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 import { verify } from "../utils/verify";
 
-const vrfCoordinator = "0xae975071be8f8ee67addbc1a82488f1c24858067";
-const subscriptionId = 293;
+const vrfCoordinator = "0xbd13f08b8352a3635218ab9418e340c60d6eb418"; //TESTNET
+const subscriptionId = 228;
 const keyHash =
-  "0xcc294a196eeeb44da2888d17c0625cc88d70d9760a69d58d853ba6581a9ab0cd";
+  "0x121a143066e0f2f08b620784af77cccb35c6242460b4a8ee251b4b416abaebd4"; //TESTNET
+
+const baseURI = "iambaseuri";
+const hiddenURI = "iamhiddenuri";
 
 async function main() {
   const CryptoHands = await ethers.getContractFactory("CryptoHands");
-  console.log("Getting artifacts for CryptoHands......");
+  const GameEngineV2 = await ethers.getContractFactory("GameEngineV2");
+  const RNGChainlinkV2 = await ethers.getContractFactory("RNGChainlinkV2");
 
-  const baseUri = "iambaseuri";
-  const hiddenUri = "iamhiddenuri";
-
-  const chArgs = [baseUri, hiddenUri];
-
-  console.log("Deploying CryptoHands......");
-
-  const cryptoHands = await CryptoHands.deploy(baseUri, hiddenUri);
-
+  const cryptoHands = await CryptoHands.deploy(baseURI, hiddenURI);
   await cryptoHands.deployed();
 
-  console.log(`CryptoHands deployed at ${cryptoHands.address}`);
+  const rngChainlikV2 = await RNGChainlinkV2.deploy(
+    vrfCoordinator,
+    subscriptionId,
+    keyHash
+  );
+  await rngChainlikV2.deployed();
+
+  const gameEngineV2 = await upgrades.deployProxy(
+    GameEngineV2,
+    [rngChainlikV2.address, cryptoHands.address],
+    {
+      initializer: "initialize",
+      kind: "uups",
+    }
+  );
+  await gameEngineV2.deployed();
+
+  await cryptoHands.updateGameAddress(gameEngineV2.address);
 
   if (process.env.ETHERSCAN_API_KEY) {
-    console.log("Verifying CryptoHands....");
-    await verify(cryptoHands.address, chArgs);
+    console.log("Verifying RNGChainlinkV2......");
+    await verify(rngChainlikV2.address, [
+      vrfCoordinator,
+      subscriptionId,
+      keyHash,
+    ]);
+
+    console.log("Verifying CryptoHands......");
+    await verify(cryptoHands.address, [baseURI, hiddenURI]);
+
+    console.log("Verifying GameEngineV2......");
+    await verify(gameEngineV2.address, []);
   }
 
-  const RockPaperScissors = await ethers.getContractFactory(
-    "RockPaperScissors"
-  );
-
-  console.log("Collecting artifacts for RockPaperScissors......");
-
-  const minBet = "1";
-  const maxBet = "10000000000000000000";
-  const rpsArgs = [maxBet, minBet, cryptoHands.address];
-
-  console.log("Deploying RockPaperScissors......");
-
-  const rockPaperScissors = await RockPaperScissors.deploy(
-    maxBet,
-    minBet,
-    cryptoHands.address
-  );
-
-  await rockPaperScissors.deployed();
-
-  console.log(`RockPaperScissors deployed at ${rockPaperScissors.address}`);
-
-  if (process.env.ETHERSCAN_API_KEY) {
-    console.log("Verifying RockPaperScissors......");
-    await verify(rockPaperScissors.address, rpsArgs);
-  }
-
-  await cryptoHands.updateGameAddress(rockPaperScissors.address);
+  await console.log("RNGChainlinkV2: ", rngChainlikV2.address);
+  await console.log("CryptoHands: ", cryptoHands.address);
+  await console.log("GameEngineV2: ", gameEngineV2.address);
 }
 
 main().catch((error) => {

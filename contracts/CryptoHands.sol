@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.7;
 
+import {ERC721AQueryable} from "erc721a/contracts/extensions/ERC721AQueryable.sol";
 import {ERC721A} from "erc721a/contracts/ERC721A.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -12,6 +13,7 @@ import {ICryptoHands} from "./interfaces/ICryptoHands.sol";
 
 contract CryptoHands is
     ERC721A,
+    ERC721AQueryable,
     Ownable,
     ReentrancyGuard,
     Pausable,
@@ -39,6 +41,8 @@ contract CryptoHands is
     address private s_game;
 
     mapping(address => bool) public s_isWhitelist;
+
+    mapping(uint256 => CryptoHandsToken) public s_cryptoHandsToken;
 
     constructor(
         string memory _baseUri,
@@ -115,7 +119,21 @@ contract CryptoHands is
         emit HandsWon(_winner);
     }
 
+    function updateCryptoHandsTokensStruct(
+        uint256[] memory tokenId,
+        uint256 lastTimeRecorded
+    ) external override winCompliance onlyGame whenNotPaused {
+        for (uint256 i = 0; i < tokenId.length; i++) {
+            s_cryptoHandsToken[tokenId[i]].lastRecordedTime = lastTimeRecorded;
+            s_cryptoHandsToken[_nextTokenId()].lastTotalSupply = totalSupply();
+        }
+    }
+
     function _mintHands(address _receiver, uint256 _mintAmount) internal {
+        s_cryptoHandsToken[_nextTokenId()].tokenId = _nextTokenId();
+        s_cryptoHandsToken[_nextTokenId()].lastRecordedTime = currentTime();
+        s_cryptoHandsToken[_nextTokenId()].lastTotalSupply = totalSupply();
+
         _safeMint(_receiver, _mintAmount);
     }
 
@@ -311,5 +329,21 @@ contract CryptoHands is
     function withdraw() external onlyOwner {
         (bool os, ) = payable(owner()).call{value: address(this).balance}("");
         require(os);
+    }
+
+    function getCryptoHandsToken(
+        uint256 tokenId
+    )
+        external
+        view
+        override
+        returns (uint256 lastClaimTime, uint256 lastTotalSupply)
+    {
+        lastClaimTime = s_cryptoHandsToken[tokenId].lastRecordedTime;
+        lastTotalSupply = s_cryptoHandsToken[tokenId].lastTotalSupply;
+    }
+
+    function currentTime() internal view returns (uint256 time) {
+        time = block.timestamp;
     }
 }

@@ -17,7 +17,7 @@ import {GameEngineV2Interface} from "./interfaces/GameEngineV2Interface.sol";
 import {KeeperCompatibleInterface} from "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
 import {RNGInterface} from "./interfaces/RNGInterface.sol";
 
-contract GameEngineV2 is
+contract GameEngineV3 is
     Initializable,
     PausableUpgradeable,
     OwnableUpgradeable,
@@ -29,23 +29,23 @@ contract GameEngineV2 is
     using SafeERC20 for IERC20;
     using SafeMath for uint256;
 
-    RNGInterface private s_rng;
+    RNGInterface public s_rng;
     RNGInterface.RngRequest internal s_rngRequest;
-    address private s_cryptoHands;
+    address public s_cryptoHands;
 
-    uint256 private s_commissionPercentage;
-    uint256 private s_refreeCommission;
-    uint256 private s_divider;
+    uint256 public s_commissionPercentage;
+    uint256 public s_refreeCommission;
+    uint256 public s_divider;
 
-    CountersUpgradeable.Counter private s_totalBets;
+    CountersUpgradeable.Counter public s_totalBets;
 
-    mapping(address => Player) private s_players;
-    mapping(uint256 => Bet) private s_bets;
+    mapping(address => Player) public s_players;
+    mapping(uint256 => Bet) public s_bets;
 
-    uint256[5] private s_availableBets;
+    uint256[5] public s_availableBets;
 
-    uint256 private s_nftWinPercentage;
-    uint256 private s_basisPoints;
+    uint256 public s_nftWinPercentage;
+    uint256 public s_basisPoints;
 
     function initialize(address rng_, address cryptoHands_) public initializer {
         __Ownable_init();
@@ -88,8 +88,6 @@ contract GameEngineV2 is
             allNftsOfPlayer,
             _currentTime()
         );
-
-        emit RewardClaimed(_msgSender(), claimableAmount, _currentTime());
     }
 
     function makeBet(
@@ -121,165 +119,6 @@ contract GameEngineV2 is
 
         _createAndSettleBet(choice_, msg.value, _msgSender(), refree_);
         _winNft(_msgSender(), msg.value);
-    }
-
-    /***************************
-     *****INTERNAL FUNCTIONS****
-     ***************************/
-
-    function _winNft(address _player, uint256 _bet) internal {
-        address refree = s_players[_player].refree;
-        uint256 winPercentage = _getNftWinPercentage(_bet);
-        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id);
-
-        uint256 formattedRandomNumber = randomNumber % s_basisPoints;
-
-        uint256 totalHandsWinned = ICryptoHands(s_cryptoHands)
-            .getTotalHandsWinned();
-        uint256 maxHandsAvailableToWin = ICryptoHands(s_cryptoHands)
-            .getMaxHandsAvailableToWin();
-
-        uint256 nftWinPercentage = s_players[_player].nftWinPercentage;
-        uint256 refreeWinPercentage = s_players[_player].refreeNftWinPercentage;
-
-        uint256 combinedWinPercentage = nftWinPercentage.add(
-            refreeWinPercentage
-        );
-
-        if (totalHandsWinned <= maxHandsAvailableToWin) {
-            if (combinedWinPercentage == s_basisPoints) {
-                ICryptoHands(s_cryptoHands).winHands(_player);
-                s_players[_player].nftWinPercentage = 0;
-                s_players[_player].refreeNftWinPercentage = 0;
-
-                emit NFTWonned(_player, _currentTime());
-            }
-            if (combinedWinPercentage > formattedRandomNumber) {
-                ICryptoHands(s_cryptoHands).winHands(_player);
-                emit NFTWonned(_player, _currentTime());
-            }
-        }
-
-        s_players[_player].nftWinPercentage =
-            s_players[_player].nftWinPercentage +
-            winPercentage;
-        s_players[refree].refreeNftWinPercentage =
-            s_players[refree].refreeNftWinPercentage +
-            winPercentage;
-    }
-
-    function _createAndSettleBet(
-        uint256 choice_,
-        uint256 betAmount_,
-        address player_,
-        address refree_
-    ) internal {
-        address refree = address(0);
-
-        if (
-            s_players[player_].refree == address(0) &&
-            refree_ != address(0) &&
-            refree_ != player_
-        ) {
-            s_players[player_].refree = refree_;
-            refree = refree_;
-            s_players[refree_].totalReferrals =
-                s_players[refree_].totalReferrals +
-                1;
-        } else {
-            refree = s_players[player_].refree;
-        }
-
-        GameChoices _playerChoice = _getChoiceAccordingToNumber(choice_);
-
-        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id);
-
-        GameChoices _outcome = _getChoiceAccordingToNumber(randomNumber % 3);
-
-        Results _result = _winOrLoose(_playerChoice, _outcome);
-
-        uint256 winAmount = _amountToWinningPool(betAmount_);
-
-        _calculateAndTransferFunds(player_, betAmount_, _result);
-
-        Bet memory currentBet = Bet(
-            s_totalBets.current(),
-            _playerChoice,
-            _outcome,
-            player_,
-            betAmount_,
-            winAmount,
-            _result
-        );
-
-        s_bets[s_totalBets.current()] = currentBet;
-        s_totalBets.increment();
-
-        s_players[player_].totalGamesPlayed =
-            s_players[player_].totalGamesPlayed +
-            1;
-
-        emit ResultsDeclared(
-            s_totalBets.current(),
-            _playerChoice,
-            _outcome,
-            betAmount_,
-            winAmount,
-            player_,
-            _result,
-            _currentTime()
-        );
-
-        emit BetCreated(
-            s_totalBets.current(),
-            _playerChoice,
-            player_,
-            betAmount_,
-            winAmount,
-            _currentTime()
-        );
-    }
-
-    function _calculateAndTransferFunds(
-        address player_,
-        uint256 betAmount_,
-        Results _result
-    ) internal {
-        address refree = s_players[player_].refree;
-        (uint256 gameCommision, uint256 refreeCommision) = _getComissionFromBet(
-            betAmount_,
-            player_
-        );
-        uint256 winAmount = _amountToWinningPool(betAmount_);
-
-        if (_result == Results.Win) {
-            if (refree == address(0)) {
-                transferNative(player_, winAmount - gameCommision);
-            } else {
-                transferNative(player_, winAmount - gameCommision);
-                transferNative(refree, refreeCommision);
-
-                s_players[refree].referralEarnings =
-                    s_players[refree].referralEarnings +
-                    refreeCommision;
-            }
-
-            s_players[player_].totalGamesWonned =
-                s_players[player_].totalGamesWonned +
-                1;
-
-            s_players[player_].totalEarnings =
-                s_players[player_].totalEarnings +
-                winAmount;
-        }
-        if (_result == Results.Tie) {
-            if (refree == address(0)) {
-                transferNative(player_, betAmount_ - gameCommision);
-            } else {
-                transferNative(player_, betAmount_ - gameCommision);
-                transferNative(refree, refreeCommision);
-            }
-        }
     }
 
     /***************************
@@ -440,90 +279,200 @@ contract GameEngineV2 is
         totalCalimableAmount = totalAmount;
     }
 
-    function getRNG() external view returns (RNGInterface rng) {
-        rng = s_rng;
+    /***************************
+     *****INTERNAL FUNCTIONS****
+     ***************************/
+
+    function _winNft(address _player, uint256 _bet) internal {
+        address refree = s_players[_player].refree;
+        uint256 winPercentage = _getNftWinPercentage(_bet);
+        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id);
+
+        uint256 formattedRandomNumber = randomNumber % s_basisPoints;
+
+        uint256 totalHandsWinned = ICryptoHands(s_cryptoHands)
+            .getTotalHandsWinned();
+        uint256 maxHandsAvailableToWin = ICryptoHands(s_cryptoHands)
+            .getMaxHandsAvailableToWin();
+
+        uint256 nftWinPercentage = s_players[_player].nftWinPercentage;
+        uint256 refreeWinPercentage = s_players[_player].refreeNftWinPercentage;
+
+        uint256 combinedWinPercentage = nftWinPercentage.add(
+            refreeWinPercentage
+        );
+
+        if (totalHandsWinned <= maxHandsAvailableToWin) {
+            if (combinedWinPercentage == s_basisPoints) {
+                ICryptoHands(s_cryptoHands).winHands(_player);
+                s_players[_player].nftWinPercentage = 0;
+                s_players[_player].refreeNftWinPercentage = 0;
+            }
+            if (combinedWinPercentage > formattedRandomNumber) {
+                ICryptoHands(s_cryptoHands).winHands(_player);
+            }
+        }
+
+        s_players[_player].nftWinPercentage =
+            s_players[_player].nftWinPercentage +
+            winPercentage;
+        s_players[refree].refreeNftWinPercentage =
+            s_players[refree].refreeNftWinPercentage +
+            winPercentage;
     }
 
-    function getCrytptoHands() external view returns (address cryptoHands) {
-        cryptoHands = s_cryptoHands;
-    }
+    function _createAndSettleBet(
+        uint256 choice_,
+        uint256 betAmount_,
+        address player_,
+        address refree_
+    ) internal {
+        address refree = address(0);
 
-    function getCommissionPercentage()
-        external
-        view
-        returns (uint256 commissionPercentage)
-    {
-        commissionPercentage = s_commissionPercentage;
-    }
+        if (
+            s_players[player_].refree == address(0) &&
+            refree_ != address(0) &&
+            refree_ != player_
+        ) {
+            s_players[player_].refree = refree_;
+            refree = refree_;
+            s_players[refree_].totalReferrals =
+                s_players[refree_].totalReferrals +
+                1;
+        } else {
+            refree = s_players[player_].refree;
+        }
 
-    function getRefreeCommissionPercentage()
-        external
-        view
-        returns (uint256 refreeCommissionPercentage)
-    {
-        refreeCommissionPercentage = s_refreeCommission;
-    }
+        GameChoices _playerChoice = _getChoiceAccordingToNumber(choice_);
 
-    function getDivider() external view returns (uint256 divider) {
-        divider = s_divider;
-    }
+        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id);
 
-    function getTotalBets() external view returns (uint256 totalBets) {
-        totalBets = s_totalBets.current();
-    }
+        GameChoices _outcome = _getChoiceAccordingToNumber(randomNumber % 3);
 
-    function getPlayer(
-        address player
-    ) external view returns (Player memory currentPlayer) {
-        currentPlayer = s_players[player];
-    }
+        uint256 winAmount = _amountToWinningPool(betAmount_);
 
-    function getBet(uint256 betId) external view returns (Bet memory bet) {
-        bet = s_bets[betId];
-    }
+        (uint256 gameCommision, uint256 refreeCommision) = _getComissionFromBet(
+            betAmount_,
+            player_
+        );
 
-    function getBetAmounts()
-        external
-        view
-        returns (uint256[5] memory betAmounts)
-    {
-        betAmounts = s_availableBets;
-    }
+        Results _result = _winOrLoose(_playerChoice, _outcome);
 
-    function getNFTWinPercentage()
-        external
-        view
-        returns (uint256 NFTWinPercentage)
-    {
-        NFTWinPercentage = s_nftWinPercentage;
+        if (refree == address(0)) {
+            if (_result == Results.Win) {
+                (bool hs, ) = payable(player_).call{
+                    value: (winAmount - gameCommision)
+                }("");
+                require(
+                    hs,
+                    "GameEngineV2: Failed to send MATIC for win clause"
+                );
+
+                s_players[player_].totalGamesWonned =
+                    s_players[player_].totalGamesWonned +
+                    1;
+                s_players[player_].totalEarnings =
+                    s_players[player_].totalEarnings +
+                    winAmount;
+            }
+            if (_result == Results.Tie) {
+                (bool hs, ) = payable(player_).call{
+                    value: (betAmount_ - gameCommision)
+                }("");
+                require(
+                    hs,
+                    "GameEngineV2: Failed to send MATIC for tie clause"
+                );
+            }
+        } else {
+            if (_result == Results.Win) {
+                (bool hs, ) = payable(player_).call{
+                    value: (winAmount - gameCommision)
+                }("");
+                require(
+                    hs,
+                    "GameEngineV2: Failed to send MATIC for win clause"
+                );
+
+                (bool sh, ) = payable(refree).call{value: (refreeCommision)}(
+                    ""
+                );
+                require(
+                    sh,
+                    "GameEngineV2: Failed to send commision MATIC to refree win clause"
+                );
+
+                s_players[player_].totalGamesWonned =
+                    s_players[player_].totalGamesWonned +
+                    1;
+
+                s_players[player_].totalEarnings =
+                    s_players[player_].totalEarnings +
+                    winAmount;
+
+                s_players[refree].referralEarnings =
+                    s_players[refree].referralEarnings +
+                    refreeCommision;
+            }
+            if (_result == Results.Tie) {
+                (bool hs, ) = payable(player_).call{
+                    value: (betAmount_ - gameCommision)
+                }("");
+                require(
+                    hs,
+                    "GameEngineV2: Failed to send MATIC for tie clause"
+                );
+
+                (bool sh, ) = payable(refree).call{value: (refreeCommision)}(
+                    ""
+                );
+                require(
+                    sh,
+                    "GameEngineV2: Failed to send commision MATIC to refree tie clause"
+                );
+            }
+        }
+
+        Bet memory currentBet = Bet(
+            s_totalBets.current(),
+            _playerChoice,
+            _outcome,
+            player_,
+            betAmount_,
+            winAmount,
+            _result
+        );
+
+        s_bets[s_totalBets.current()] = currentBet;
+        s_totalBets.increment();
+
+        s_players[player_].totalGamesPlayed =
+            s_players[player_].totalGamesPlayed +
+            1;
     }
 
     /***************************
-     ******OWNER FUNCTIONS******
+     *****OWNER FUNCTIONS****
      ***************************/
 
     function updateRNG(RNGInterface rng_) external onlyOwner {
         s_rng = rng_;
-        emit RNGUpdated(address(rng_));
     }
 
     function updateCryptoHands(address cryptoHands_) external onlyOwner {
         s_cryptoHands = cryptoHands_;
-        emit CryptoHandsUPdated(cryptoHands_);
     }
 
     function updateCommissionPercentage(
         uint256 commission_
     ) external onlyOwner {
         s_commissionPercentage = commission_;
-        emit CommissionPercentageUpdated(commission_);
     }
 
     function updateRefreeCommission(
         uint256 refreeCommision_
     ) external onlyOwner {
         s_refreeCommission = refreeCommision_;
-        emit RefreeCommissionUpdated(refreeCommision_);
     }
 
     function pause() external onlyOwner {
@@ -536,7 +485,6 @@ contract GameEngineV2 is
 
     function updateDivider(uint256 divider_) external onlyOwner {
         s_divider = divider_;
-        emit DividerUpdated(divider_);
     }
 
     function updateAvailableBets(
@@ -545,7 +493,6 @@ contract GameEngineV2 is
     ) external onlyOwner {
         require(index_ < s_availableBets.length, "GameEngineV2: Out of bound");
         s_availableBets[index_] = betAmount_;
-        emit AvailableBetsUpdated(betAmount_);
     }
 
     function _authorizeUpgrade(
@@ -557,9 +504,4 @@ contract GameEngineV2 is
      ***************************/
 
     receive() external payable {}
-
-    function transferNative(address player, uint256 amount) internal {
-        (bool hs, ) = payable(player).call{value: (amount)}("");
-        require(hs, "GameEngineV2: Failed to transfer Token");
-    }
 }

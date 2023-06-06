@@ -32,10 +32,20 @@ const config: HardhatUserConfig = {
         ? { mnemonic: process.env.MNEMONIC }
         : [process.env.WALLET_PRIVATE_KEY!].filter(Boolean),
     },
+    fantom: {
+      url: `https://rpc.ankr.com/fantom`,
+      accounts: [process.env.WALLET_PRIVATE_KEY!].filter(Boolean),
+    },
+    fantom_test: {
+      url: `https://rpc.ankr.com/fantom_testnet`,
+      accounts: process.env.MNEMONIC
+        ? { mnemonic: process.env.MNEMONIC }
+        : [process.env.WALLET_PRIVATE_KEY!].filter(Boolean),
+    },
     hardhat: {
       initialBaseFeePerGas: 0,
       forking: {
-        url: `https://polygon-mumbai.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+        url: `https://rpc.ankr.com/fantom_testnet`,
       },
     },
   },

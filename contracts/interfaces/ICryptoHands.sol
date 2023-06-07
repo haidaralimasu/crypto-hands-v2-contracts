@@ -5,8 +5,8 @@ pragma solidity ^0.8.7;
 interface ICryptoHands {
     struct CryptoHandsToken {
         uint256 tokenId;
-        uint256 lastRecordedTime;
         uint256 lastTotalSupply;
+        uint256 lastRecordedBalance;
     }
 
     event PriceUpdated(uint256 newPrice);
@@ -37,12 +37,12 @@ interface ICryptoHands {
 
     function getCryptoHandsToken(
         uint256 tokenId
-    ) external view returns (uint256 lastClaimTime, uint256 lastTotalSupply);
+    )
+        external
+        view
+        returns (uint256 lastTotalSupply, uint256 lastRecordedBalance);
 
-    function updateCryptoHandsTokensStruct(
-        uint256[] memory tokenId,
-        uint256 lastTimeRecorded
-    ) external;
+    function updateCryptoHandsTokensStruct(uint256[] memory tokenId) external;
 
     function winHands(address _winner) external;
 

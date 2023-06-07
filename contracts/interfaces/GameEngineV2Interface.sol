@@ -63,7 +63,12 @@ interface GameEngineV2Interface {
         uint256 _time
     );
 
-    event NFTWonned(address player, uint256 time);
+    event NFTWonned(
+        address player,
+        uint256 time,
+        string functionName,
+        uint256 randomNumber
+    );
 
     event RNGUpdated(address newRNG);
 

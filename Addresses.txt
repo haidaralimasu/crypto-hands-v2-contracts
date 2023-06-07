@@ -1,9 +1,9 @@
 RNGChainlinkV2:  0xd8540ea08052631B0B4e17ad14C1f556925e52aC
 CryptoHands:  0x635Af72bC3904DFf40e31538467A0A1528e338c4
-GameEngineV2Implementation:  0x072Ef85515E9c61e13aa09BA4a861F8bc2632c43
+GameEngineV2Implementation:  0x9F9e87a9e73DfEfbF0a21226f363EFca334D5AA8
 GameEngineV2Proxy: 0x072Ef85515E9c61e13aa09BA4a861F8bc2632c43
 
 RNGChainlinkV2: https://testnet.ftmscan.com/address/0xd8540ea08052631B0B4e17ad14C1f556925e52aC
 CryptoHands: https://testnet.ftmscan.com/address/0x635Af72bC3904DFf40e31538467A0A1528e338c4
-GameEngineV2Implementation: https://testnet.ftmscan.com/address/0x072Ef85515E9c61e13aa09BA4a861F8bc2632c43
+GameEngineV2Implementation: https://testnet.ftmscan.com/address/0x9F9e87a9e73DfEfbF0a21226f363EFca334D5AA8
 GameEngineV2Proxy: https://testnet.ftmscan.com/address/0x072Ef85515E9c61e13aa09BA4a861F8bc2632c43

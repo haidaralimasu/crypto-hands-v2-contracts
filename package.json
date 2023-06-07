@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@chainlink/contracts": "^0.6.1",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
     "@openzeppelin/hardhat-upgrades": "^1.26.0",
     "@openzeppelin/upgrades": "^2.8.0",
     "@types/jest": "^28.1.6",

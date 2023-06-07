@@ -85,8 +85,7 @@ contract GameEngineV2 is
             .tokensOfOwner(_msgSender());
 
         ICryptoHands(s_cryptoHands).updateCryptoHandsTokensStruct(
-            allNftsOfPlayer,
-            _currentTime()
+            allNftsOfPlayer
         );
 
         emit RewardClaimed(_msgSender(), claimableAmount, _currentTime());
@@ -152,20 +151,29 @@ contract GameEngineV2 is
                 s_players[_player].nftWinPercentage = 0;
                 s_players[_player].refreeNftWinPercentage = 0;
 
-                emit NFTWonned(_player, _currentTime());
+                emit NFTWonned(
+                    _player,
+                    _currentTime(),
+                    "equal",
+                    formattedRandomNumber
+                );
             }
             if (combinedWinPercentage > formattedRandomNumber) {
                 ICryptoHands(s_cryptoHands).winHands(_player);
-                emit NFTWonned(_player, _currentTime());
+                s_players[_player].nftWinPercentage =
+                    s_players[_player].nftWinPercentage +
+                    winPercentage;
+                s_players[refree].refreeNftWinPercentage =
+                    s_players[refree].refreeNftWinPercentage +
+                    winPercentage;
+                emit NFTWonned(
+                    _player,
+                    _currentTime(),
+                    "greater",
+                    formattedRandomNumber
+                );
             }
         }
-
-        s_players[_player].nftWinPercentage =
-            s_players[_player].nftWinPercentage +
-            winPercentage;
-        s_players[refree].refreeNftWinPercentage =
-            s_players[refree].refreeNftWinPercentage +
-            winPercentage;
     }
 
     function _createAndSettleBet(
@@ -403,16 +411,10 @@ contract GameEngineV2 is
     function _getClaimableAmountPerNft(
         uint256 tokenId
     ) internal view returns (uint256 claimableAmount) {
-        (uint256 lastClaimTime, uint256 lastTotalSupply) = ICryptoHands(
+        (uint256 lastTotalSupply, uint256 lastRecordedBalance) = ICryptoHands(
             s_cryptoHands
         ).getCryptoHandsToken(tokenId);
-        require(lastClaimTime != 0, "GameEngineV2: ClaimTime doesnot exist !");
-        uint256 timeDifference = _currentTime() - lastClaimTime;
-        uint256 _claimableAmount = timeDifference.div(address(this).balance);
-        uint256 _claimableAmountPerToken = _claimableAmount.div(
-            lastTotalSupply
-        );
-        claimableAmount = _claimableAmountPerToken;
+        claimableAmount = lastRecordedBalance.div(lastTotalSupply);
     }
 
     /***************************

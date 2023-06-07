@@ -37,6 +37,7 @@ contract CryptoHands is
 
     uint256 private s_totalMinted;
     Counters.Counter private s_totalWinned;
+    Counters.Counter private s_tokenId;
 
     address private s_game;
 
@@ -120,21 +121,32 @@ contract CryptoHands is
     }
 
     function updateCryptoHandsTokensStruct(
-        uint256[] memory tokenId,
-        uint256 lastTimeRecorded
+        uint256[] memory tokenId
     ) external override winCompliance onlyGame whenNotPaused {
         for (uint256 i = 0; i < tokenId.length; i++) {
-            s_cryptoHandsToken[tokenId[i]].lastRecordedTime = lastTimeRecorded;
-            s_cryptoHandsToken[_nextTokenId()].lastTotalSupply = totalSupply();
+            s_cryptoHandsToken[tokenId[i]].lastTotalSupply = totalSupply();
+            s_cryptoHandsToken[tokenId[i]]
+                .lastRecordedBalance = _getGameContractBalance();
         }
     }
 
     function _mintHands(address _receiver, uint256 _mintAmount) internal {
-        s_cryptoHandsToken[_nextTokenId()].tokenId = _nextTokenId();
-        s_cryptoHandsToken[_nextTokenId()].lastRecordedTime = currentTime();
-        s_cryptoHandsToken[_nextTokenId()].lastTotalSupply = totalSupply();
+        uint256 nextTotalSupply = totalSupply() + _mintAmount;
 
-        _safeMint(_receiver, _mintAmount);
+        for (uint256 i = 0; i < _mintAmount; i++) {
+            _safeMint(_receiver, 1);
+
+            s_cryptoHandsToken[s_tokenId.current()].tokenId = s_tokenId
+                .current();
+
+            s_cryptoHandsToken[s_tokenId.current()]
+                .lastTotalSupply = nextTotalSupply;
+
+            s_cryptoHandsToken[s_tokenId.current()]
+                .lastRecordedBalance = _getGameContractBalance();
+
+            s_tokenId.increment();
+        }
     }
 
     function revealHands() external override onlyOwner {
@@ -337,13 +349,26 @@ contract CryptoHands is
         external
         view
         override
-        returns (uint256 lastClaimTime, uint256 lastTotalSupply)
+        returns (uint256 lastTotalSupply, uint256 lastRecordedBalanceOfContract)
     {
-        lastClaimTime = s_cryptoHandsToken[tokenId].lastRecordedTime;
+        require(
+            _exists(tokenId),
+            "ERC721Metadata: URI query for nonexistent token"
+        );
         lastTotalSupply = s_cryptoHandsToken[tokenId].lastTotalSupply;
+        if (s_cryptoHandsToken[tokenId].lastRecordedBalance == 0) {
+            lastRecordedBalanceOfContract = _getGameContractBalance();
+        } else {
+            lastRecordedBalanceOfContract = s_cryptoHandsToken[tokenId]
+                .lastRecordedBalance;
+        }
     }
 
     function currentTime() internal view returns (uint256 time) {
         time = block.timestamp;
+    }
+
+    function _getGameContractBalance() public view returns (uint256 balance) {
+        return s_game.balance;
     }
 }

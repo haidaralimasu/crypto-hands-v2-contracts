@@ -1,68 +1,63 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
 const rng = "0xd8540ea08052631B0B4e17ad14C1f556925e52aC";
-const cryptoHands = "0x635Af72bC3904DFf40e31538467A0A1528e338c4";
 
 describe("GameEngineV2 Unit Tests", async () => {
   let GameEngineV2;
   let gameEngineV2;
+  let CryptoHands;
+  let cryptoHands;
   let owner;
   let addr1;
   let addr2;
 
   beforeEach(async () => {
     GameEngineV2 = await ethers.getContractFactory("GameEngineV2");
+    CryptoHands = await ethers.getContractFactory("CryptoHands");
     [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
 
     gameEngineV2 = await GameEngineV2.deploy();
     await gameEngineV2.deployed();
-    await gameEngineV2.initialize(rng, cryptoHands);
+    await gameEngineV2.deposite({ value: "100000000000000000000" });
+
+    cryptoHands = await CryptoHands.deploy("hii", "Hii", gameEngineV2.address);
+    await cryptoHands.deployed();
+
+    await gameEngineV2.initialize(rng, cryptoHands.address);
+
+    // await cryptoHands.updateGameAddress(gameEngineV2.address);
   });
 
   describe("Deployment and constructor", () => {
     it("it should make bet", async () => {
-      // await gameEngineV2.deposite({ value: "1000000000000000000" });
-      // await gameEngineV2
-      //   .connect(addr1)
-      //   .makeBet(2, addr2.address, { value: "1000000000000000000" });
-      // const player = await gameEngineV2.s_players(addr1.address);
+      // await gameEngineV2.makeBet(1, addr2.address, {
+      //   value: "1000000000000000",
+      // });
+
+      // await gameEngineV2.makeBet(2, addr2.address, {
+      //   value: "1000000000000000",
+      // });
+
+      // const player = await gameEngineV2.getPlayer(owner.address);
       // console.log(player);
-      // const refree = await gameEngineV2.s_players(addr2.address);
-      // console.log(refree);
-      // const commission = await gameEngineV2._getComissionFromBet(
-      //   "1000000000000000000",
-      //   addr1.address
-      // );
-      // console.log(commission);
 
-      const winPercentage = await gameEngineV2._getNftWinPercentage(
-        "100000000000000"
-      );
-      console.log(winPercentage);
-    });
-  });
+      // const totalSupply = await cryptoHands.totalSupply();
+      // await console.log(totalSupply.toString());
 
-  describe("Bet", () => {
-    it("it should make bet", async () => {
-      // await gameEngineV2.deposite({ value: "1000000000000000000" });
-      // await gameEngineV2
-      //   .connect(addr1)
-      //   .makeBet(2, addr2.address, { value: "1000000000000000000" });
-      // const player = await gameEngineV2.s_players(addr1.address);
-      // console.log(player);
-      // const refree = await gameEngineV2.s_players(addr2.address);
-      // console.log(refree);
-      // const commission = await gameEngineV2._getComissionFromBet(
-      //   "1000000000000000000",
-      //   addr1.address
-      // );
-      // console.log(commission);
+      const balance = await cryptoHands.s_cryptoHandsToken(0);
+      console.log(balance);
 
-      const winPercentage = await gameEngineV2._getNftWinPercentage(
-        "100000000000000"
-      );
-      console.log(winPercentage);
+      const totalSupply = await cryptoHands.totalSupply();
+      console.log(totalSupply);
+
+      // const token = await cryptoHands.s_cryptoHandsToken(1);
+      // console.log(token);
+
+      // await time.increase(864000);
+      const claimableAmount = await gameEngineV2.getClaimAmount(owner.address);
+      console.log(claimableAmount.toString(), "CLAIMABLE AMOUNT");
     });
   });
 });

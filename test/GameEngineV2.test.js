@@ -32,12 +32,16 @@ describe("GameEngineV2 Unit Tests", async () => {
 
   describe("Deployment and constructor", () => {
     it("it should make bet", async () => {
+      await gameEngineV2.makeBet(0, addr2.address, {
+        value: "1000000000000000000",
+      });
+
       // await gameEngineV2.makeBet(1, addr2.address, {
-      //   value: "1000000000000000",
+      //   value: "2000000000000000000",
       // });
 
       // await gameEngineV2.makeBet(2, addr2.address, {
-      //   value: "1000000000000000",
+      //   value: "3000000000000000000",
       // });
 
       // const player = await gameEngineV2.getPlayer(owner.address);
@@ -46,18 +50,18 @@ describe("GameEngineV2 Unit Tests", async () => {
       // const totalSupply = await cryptoHands.totalSupply();
       // await console.log(totalSupply.toString());
 
-      const balance = await cryptoHands.s_cryptoHandsToken(0);
-      console.log(balance);
+      // const balance = await cryptoHands.s_cryptoHandsToken(0);
+      // console.log(balance);
 
-      const totalSupply = await cryptoHands.totalSupply();
-      console.log(totalSupply);
+      // const totalSupply = await cryptoHands.totalSupply();
+      // console.log(totalSupply);
 
       // const token = await cryptoHands.s_cryptoHandsToken(1);
       // console.log(token);
 
       // await time.increase(864000);
-      const claimableAmount = await gameEngineV2.getClaimAmount(owner.address);
-      console.log(claimableAmount.toString(), "CLAIMABLE AMOUNT");
+      // const claimableAmount = await gameEngineV2.getClaimAmount(owner.address);
+      // console.log(claimableAmount.toString(), "CLAIMABLE AMOUNT");
     });
   });
 });

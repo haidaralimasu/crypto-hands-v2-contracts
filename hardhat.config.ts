@@ -27,7 +27,7 @@ const config: HardhatUserConfig = {
       accounts: [process.env.WALLET_PRIVATE_KEY!].filter(Boolean),
     },
     mumbai: {
-      url: `https://polygon-mumbai.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
+      url: `https://polygon-mumbai.infura.io/v3/7e92a4d7e4f84c949538574187ddf3bf`,
       accounts: process.env.MNEMONIC
         ? { mnemonic: process.env.MNEMONIC }
         : [process.env.WALLET_PRIVATE_KEY!].filter(Boolean),

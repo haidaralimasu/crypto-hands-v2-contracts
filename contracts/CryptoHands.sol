@@ -45,6 +45,8 @@ contract CryptoHands is
 
     mapping(uint256 => CryptoHandsToken) public s_cryptoHandsToken;
 
+    uint256 internal lastBalanceOfGame;
+
     constructor(
         string memory _baseUri,
         string memory _hiddenUri
@@ -142,10 +144,16 @@ contract CryptoHands is
             s_cryptoHandsToken[s_tokenId.current()]
                 .lastTotalSupply = nextTotalSupply;
 
-            s_cryptoHandsToken[s_tokenId.current()]
-                .lastRecordedBalance = _getGameContractBalance();
+            lastBalanceOfGame >= _getGameContractBalance()
+                ? s_cryptoHandsToken[s_tokenId.current()].lastRecordedBalance =
+                    lastBalanceOfGame -
+                    _getGameContractBalance()
+                : s_cryptoHandsToken[s_tokenId.current()].lastRecordedBalance =
+                _getGameContractBalance() -
+                lastBalanceOfGame;
 
             s_tokenId.increment();
+            lastBalanceOfGame = _getGameContractBalance();
         }
     }
 

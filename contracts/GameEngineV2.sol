@@ -57,7 +57,7 @@ contract GameEngineV2 is
         s_cryptoHands = cryptoHands_;
 
         s_commissionPercentage = 300;
-        s_refreeCommission = 100;
+        s_refreeCommission = 2500;
         s_divider = 10;
 
         s_availableBets = [
@@ -68,8 +68,8 @@ contract GameEngineV2 is
             0.005 ether
         ];
 
-        s_nftWinPercentage = 1000;
-        s_basisPoints = 100000000;
+        s_nftWinPercentage = 500; // TODO: make it 1000 in production
+        s_basisPoints = 10000;
     }
 
     /*********************
@@ -104,8 +104,25 @@ contract GameEngineV2 is
             }
         }
 
+        _getRandomNumberRequest();
         require(shouldProceed, "GameEngineV2: Invalid bet amount");
+        if (
+            s_players[refree_].totalGamesPlayed >= 1 &&
+            s_players[msg.sender].totalGamesPlayed == 0
+        ) {
+            _createAndSettleBet(choice_, msg.value, _msgSender(), refree_);
+        } else {
+            _createAndSettleBet(choice_, msg.value, _msgSender(), address(0));
+        }
 
+        _winNft(_msgSender(), msg.value);
+    }
+
+    /***************************
+     *****INTERNAL FUNCTIONS****
+     ***************************/
+
+    function _getRandomNumberRequest() internal {
         (address feeToken, uint256 requestFee) = s_rng.getRequestFee();
 
         if (feeToken != address(0) && requestFee > 0) {
@@ -117,19 +134,12 @@ contract GameEngineV2 is
         s_rngRequest.id = requestId;
         s_rngRequest.lockBlock = lockBlock;
         s_rngRequest.requestedAt = _currentTime();
-
-        _createAndSettleBet(choice_, msg.value, _msgSender(), refree_);
-        _winNft(_msgSender(), msg.value);
     }
-
-    /***************************
-     *****INTERNAL FUNCTIONS****
-     ***************************/
 
     function _winNft(address _player, uint256 _bet) internal {
         address refree = s_players[_player].refree;
         uint256 winPercentage = _getNftWinPercentage(_bet);
-        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id);
+        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id - 1);
 
         uint256 formattedRandomNumber = randomNumber % s_basisPoints;
 
@@ -149,31 +159,35 @@ contract GameEngineV2 is
             if (combinedWinPercentage == s_basisPoints) {
                 ICryptoHands(s_cryptoHands).winHands(_player);
                 s_players[_player].nftWinPercentage = 0;
-                s_players[_player].refreeNftWinPercentage = 0;
-
-                emit NFTWonned(
-                    _player,
-                    _currentTime(),
-                    "equal",
-                    formattedRandomNumber
-                );
-            }
-            if (combinedWinPercentage > formattedRandomNumber) {
-                ICryptoHands(s_cryptoHands).winHands(_player);
-                s_players[_player].nftWinPercentage =
-                    s_players[_player].nftWinPercentage +
-                    winPercentage;
-                s_players[refree].refreeNftWinPercentage =
-                    s_players[refree].refreeNftWinPercentage +
-                    winPercentage;
-                emit NFTWonned(
-                    _player,
-                    _currentTime(),
-                    "greater",
-                    formattedRandomNumber
-                );
+                s_players[_player].nftWoned = s_players[_player].nftWoned + 1;
+            } else {
+                if (combinedWinPercentage > formattedRandomNumber) {
+                    ICryptoHands(s_cryptoHands).winHands(_player);
+                    s_players[_player].nftWoned =
+                        s_players[_player].nftWoned +
+                        1;
+                }
             }
         }
+
+        emit NFTWonned(
+            _player,
+            _currentTime(),
+            "greater",
+            formattedRandomNumber
+        );
+
+        s_players[_player].nftWinPercentage =
+            s_players[_player].nftWinPercentage +
+            winPercentage;
+
+        if (refree != address(0)) {
+            s_players[refree].refreeNftWinPercentage =
+                s_players[refree].refreeNftWinPercentage +
+                winPercentage;
+        }
+
+        // s_nftWinPercentage = s_nftWinPercentage - 1; //REVIEW: WHY
     }
 
     function _createAndSettleBet(
@@ -200,7 +214,7 @@ contract GameEngineV2 is
 
         GameChoices _playerChoice = _getChoiceAccordingToNumber(choice_);
 
-        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id);
+        uint256 randomNumber = s_rng.randomNumber(s_rngRequest.id - 1);
 
         GameChoices _outcome = _getChoiceAccordingToNumber(randomNumber % 3);
 
@@ -286,6 +300,17 @@ contract GameEngineV2 is
             } else {
                 transferNative(player_, betAmount_ - gameCommision);
                 transferNative(refree, refreeCommision);
+                s_players[refree].referralEarnings =
+                    s_players[refree].referralEarnings +
+                    refreeCommision;
+            }
+        }
+        if (_result == Results.Loose) {
+            if (refree != address(0)) {
+                transferNative(refree, refreeCommision);
+                s_players[refree].referralEarnings =
+                    s_players[refree].referralEarnings +
+                    refreeCommision;
             }
         }
     }
@@ -298,8 +323,8 @@ contract GameEngineV2 is
         uint256 _bet
     ) public view returns (uint256 nftWinPercentage) {
         uint256 nftWinPercentageWithDecrease = _getNftWinPercentageWithDecrease();
-        uint256 multiple = _bet.mul(nftWinPercentageWithDecrease).div(1 ether);
-        nftWinPercentage = multiple;
+
+        return nftWinPercentageWithDecrease;
     }
 
     function _getChoiceAccordingToNumber(
@@ -320,8 +345,7 @@ contract GameEngineV2 is
     function _amountToWinningPool(
         uint256 _bet
     ) internal view returns (uint256 _winningPool) {
-        uint256 balance = address(this).balance;
-        _winningPool = (balance / s_divider) + _bet;
+        _winningPool = _bet * 2;
     }
 
     function _currentTime() internal view returns (uint64 currentTime) {
@@ -336,12 +360,13 @@ contract GameEngineV2 is
             uint256 _comission = _bet.mul(s_commissionPercentage).div(10000);
             return (_comission, 0);
         } else {
-            uint256 refreeCommsion = _bet.mul(s_refreeCommission).div(10000);
-            uint256 gameCommision = _bet
-                .mul(s_commissionPercentage)
-                .div(10000)
-                .sub(refreeCommsion);
-            return (gameCommision, refreeCommsion);
+            uint256 gameCommision = _bet.mul(s_commissionPercentage).div(10000);
+            uint256 refreeCommission = gameCommision
+                .mul(s_refreeCommission)
+                .div(10000);
+            uint256 formattedGameCommission = gameCommision -
+                s_refreeCommission;
+            return (formattedGameCommission, refreeCommission);
         }
     }
 
